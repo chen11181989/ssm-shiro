@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+	<description>apache shiro配置</description>
+
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager" />
+		<!-- 如果需要权限， 然而没有登录的话，会跳转到 登录界面url /rest/page/login -->
+		<property name="loginUrl" value="/rest/page/login" />
+		<!-- 登录成功后会跳转到 /rest/index -->
+		<property name="successUrl" value="/rest/index" />
+		<!-- 登录后如果没有权限的话，会跳转到 /rest/page/401 -->
+		<property name="unauthorizedUrl" value="/rest/page/401" />
+		<property name="filterChainDefinitions">
+			<value>
+				<!-- 静态资源允许访问 -->
+				/app/** = anon
+				/assets/** = anon
+				<!-- 登录页允许访问 -->
+				/rest/user/login = anon
+				<!-- 如果某个资源允许访问， 直接匹配成anon 即可 -->
+				<!-- /rest/user/* = anon -->
+				<!-- 如果某个资源需要认证，且要有相应的角色，可以直接如下设置，可以设置多个角色用逗号隔开, 有可以设置权限控制 -->
+				<!-- 也是使用注解来实现，注意要在spring-mvc.xml 中启用shiro授权注解， 使用方式具体见 UserController 
+					类 -->
+				/rest/user/admin = authc ,roles[admin] ,perms[user:create]
+				<!-- /rest/user/admin = authc ,perms[user:create] -->
+				<!-- 其他资源需要认证 ，需要认证的资源 匹配成 authc -->
+				<!-- /** = authc -->
+			</value>
+		</property>
+	</bean>
+
+	<!-- 缓存管理器 使用Ehcache实现 -->
+	<bean id="shiroEhcacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:ehcache-shiro.xml" />
+	</bean>
+
+	<!-- 会话DAO -->
+	<bean id="sessionDAO" class="org.apache.shiro.session.mgt.eis.MemorySessionDAO" />
+
+	<!-- 会话管理器 -->
+	<bean id="sessionManager"
+		class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+		<property name="sessionDAO" ref="sessionDAO" />
+	</bean>
+	<!-- 会话Cookie模板 -->
+	<bean id="sessionIdCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+		<constructor-arg value="sid" />
+		<property name="httpOnly" value="true" />
+		<!-- maxAge=-1表示浏览器关闭时失效此Cookie； -->
+		<property name="maxAge" value="-1" />
+	</bean>
+	<!-- <bean id="rememberMeCookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+		<constructor-arg value="rememberMe" />
+		<property name="httpOnly" value="true" />
+		即记住我的Cookie，保存时长30天；
+		<property name="maxAge" value="2592000" />30天
+	</bean> -->
+
+ <!-- rememberMe管理器 -->
+   <!--  <bean id="rememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+        rememberMe cookie加密的密钥 建议每个项目都不一样 默认AES算法 密钥长度（128 256 512 位）
+        <property name="cipherKey"
+                  value="#{T(org.apache.shiro.codec.Base64).decode('3AvVhmFLUs0KTA3Kprsdag==')}"/>
+        <property name="cookie" ref="rememberMeCookie"/>
+    </bean> -->
+
+
+	<!-- 安全管理器 -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="realms">
+			<list>
+				<!-- 这里引用的是 com.shiro.security.SecurityRealm.java 类 -->
+				<ref bean="securityRealm" />
+			</list>
+		</property>
+		<!-- cacheManager,集合spring缓存工厂 -->
+		<!-- <property name="cacheManager" ref="shiroEhcacheManager" /> -->
+		 <property name="sessionManager" ref="sessionManager"/>
+       <!--  <property name="rememberMeManager" ref="rememberMeManager"/> -->
+	</bean>
+
+	<!-- Shiro生命周期处理器 -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor" />
+
+</beans>
